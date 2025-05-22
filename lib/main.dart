@@ -1,34 +1,25 @@
 import 'package:flutter/material.dart';
-import 'app.dart';
+import 'home.dart';
+import 'rastreamento.dart'; 
 
-// Configuração global para quando não temos arquivo .env
-class AppConfig {
-  // Opções para diferentes ambientes
-  static const String _emulatorUrl = "http://10.0.2.2:8000/api/v1/";
-  static const String _localIpUrl = "http://192.168.0.6:8000/api/v1/";
-  static const String _localHostUrl = "http://localhost:8000/api/v1/";
-
-  // URL ativa - altere aqui para testar diferentes configurações
-  static const String apiBaseUrl = _emulatorUrl;
-  static const bool isDevelopment = true;
-
-  // Método para uso em debug
-  static void printApiUrl() {
-    debugPrint('API URL configurada: $apiBaseUrl');
-    debugPrint('Outras opções:');
-    debugPrint('- Emulador: $_emulatorUrl');
-    debugPrint('- IP Local: $_localIpUrl');
-    debugPrint('- Localhost: $_localHostUrl');
-  }
+void main() {
+  runApp(const MyApp());
 }
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-  // Debug da configuração
-  if (AppConfig.isDevelopment) {
-    AppConfig.printApiUrl();
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Rastreamento de Medicamentos',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      debugShowCheckedModeBanner: false,
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomePage(),
+        '/rastreamento': (context) => const TelaRastreamento(), 
+      },
+    );
   }
-
-  runApp(const MyApp());
 }
