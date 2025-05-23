@@ -1,5 +1,9 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,31 +15,75 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final _medicamentoController = TextEditingController();
   bool _mostrarLocalAtual = false;
+  String? _corredor;
+  String? _setor;
 
   void _salvarMedicamentoLocalmente() async {
+    final nome = _medicamentoController.text.trim();
+    if (nome.isEmpty || _corredor == null || _setor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha o nome e ative a localização antes de salvar')),
+      );
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('medicamento', _medicamentoController.text);
+    await prefs.setString('medicamento', nome);
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Relatório de Localização do Medicamento',
+                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 16),
+              pw.Text('Nome do Medicamento: $nome'),
+              pw.Text('Corredor: $_corredor'),
+              pw.Text('Setor: $_setor'),
+              pw.Text('Data/Hora: ${DateTime.now()}'),
+            ],
+          );
+        },
+      ),
+    );
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$nome-relatorio.pdf');
+    await file.writeAsBytes(await pdf.save());
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Medicamento salvo localmente')),
+      SnackBar(content: Text('PDF salvo em: ${file.path}')),
     );
   }
 
   void _navegarParaRastreamento() {
-  final nomeMedicamento = _medicamentoController.text.trim();
+    final nomeMedicamento = _medicamentoController.text.trim();
+    if (nomeMedicamento.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Digite o nome do medicamento para continuar.')),
+      );
+      return;
+    }
 
-  if (nomeMedicamento.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Digite o nome do medicamento para continuar.')),
+    Navigator.pushNamed(
+      context,
+      '/rastreamento',
+      arguments: nomeMedicamento,
     );
-    return;
   }
 
-  Navigator.pushNamed(
-    context,
-    '/rastreamento',
-    arguments: nomeMedicamento,
-  );
-}
+  void _gerarLocalizacaoAleatoria() {
+    final corredores = ['A1', 'B3', 'C2', 'D5', 'E4'];
+    final setores = ['Farmácia', 'Emergência', 'UTI', 'Pediatria', 'Oncologia'];
+    final random = Random();
+    setState(() {
+      _corredor = corredores[random.nextInt(corredores.length)];
+      _setor = setores[random.nextInt(setores.length)];
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,13 +155,46 @@ class _HomePageState extends State<HomePage> {
                   title: const Text('Mostrar localização atual do remédio'),
                   value: _mostrarLocalAtual,
                   onChanged: (val) {
+                    if (_medicamentoController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Digite o nome do medicamento antes de mostrar a localização'),
+                        ),
+                      );
+                      return;
+                    }
                     setState(() {
                       _mostrarLocalAtual = val;
                     });
+                    if (val) {
+                      _gerarLocalizacaoAleatoria();
+                    }
                   },
                   activeColor: theme.colorScheme.primary,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 0),
                 ),
+                if (_mostrarLocalAtual && _corredor != null && _setor != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('📍 Localização Atual do Medicamento:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text('Corredor: $_corredor'),
+                          Text('Setor: $_setor'),
+                        ],
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
