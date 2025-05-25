@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../../home.dart';
 import 'profile_page.dart';
@@ -36,19 +34,6 @@ class _MainPageState extends State<MainPage> {
   ];
 
   void _handleNavigation(int index) {
-    if (index == 1) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      if (!authProvider.isAuthenticated) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Você precisa estar logado para acessar o perfil'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        Navigator.of(context).pushReplacementNamed('/login');
-        return;
-      }
-    }
     setState(() {
       _currentIndex = index;
     });

@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/common/app_scaffold.dart';
-import '../widgets/common/info_card.dart';
-import '../widgets/common/loading_error_state.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,95 +10,182 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  bool _isLoading = false;
+  bool _hasInitialLoad = false;
+
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    // Carrega o perfil apenas uma vez quando a página é inicializada
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasInitialLoad) {
+        _loadProfile();
+        _hasInitialLoad = true;
+      }
+    });
   }
 
   Future<void> _loadProfile() async {
-    if (!mounted) return;
+    if (!context.mounted || _isLoading) return;
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (authProvider.isAuthenticated) {
-      debugPrint('🔑 Usuário autenticado, carregando perfil...');
-      if (!mounted) return;
-      await Provider.of<ProfileProvider>(context, listen: false).loadProfile();
-    } else {
-      debugPrint('❌ Usuário não autenticado, redirecionando para login...');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Você precisa estar logado para ver seu perfil'),
+    final profileProvider =
+        Provider.of<ProfileProvider>(context, listen: false);
+
+    _isLoading = true;
+    setState(() {});
+
+    try {
+      debugPrint(
+          '🔍 Verificando autenticação: ${authProvider.isAuthenticated}');
+
+      if (authProvider.isAuthenticated) {
+        debugPrint('🔑 Usuário autenticado, carregando perfil...');
+        await profileProvider.loadProfile();
+      } else {
+        debugPrint('❌ Usuário não autenticado');
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao carregar perfil. Tente novamente.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Erro ao carregar perfil: $e');
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar perfil: $e'),
           backgroundColor: Colors.red,
         ),
       );
-      Navigator.of(context).pushReplacementNamed('/login');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final profileProvider = Provider.of<ProfileProvider>(context);
+    final theme = Theme.of(context);
 
-    return AppScaffold(
-      title: 'Meu Perfil',
-      showLogoutButton: false,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _loadProfile,
-        ),
-      ],
-      body: LoadingErrorState(
-        isLoading: profileProvider.isLoading,
-        error: profileProvider.error,
-        onRetry: _loadProfile,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar do usuário
-              Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: profileProvider.profile?.photo != null
-                      ? NetworkImage(profileProvider.profile!.photo!)
-                      : null,
-                  child: profileProvider.profile?.photo == null
-                      ? const Icon(Icons.person, size: 50)
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Informações do usuário
-              InfoCard(
-                title: 'Usuário',
-                content: profileProvider.profile?.username ?? '',
-                icon: Icons.account_circle,
-              ),
-              InfoCard(
-                title: 'E-mail',
-                content: profileProvider.profile?.email ?? '',
-                icon: Icons.email,
-              ),
-              if (profileProvider.profile?.name != null)
-                InfoCard(
-                  title: 'Nome',
-                  content: profileProvider.profile!.name!,
-                  icon: Icons.person,
-                ),
-              if (profileProvider.profile?.phone != null)
-                InfoCard(
-                  title: 'Telefone',
-                  content: profileProvider.profile!.phone!,
-                  icon: Icons.phone,
-                ),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Meu Perfil'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadProfile,
           ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final authProvider =
+                  Provider.of<AuthProvider>(context, listen: false);
+              await authProvider.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacementNamed('/login');
+              }
+            },
+          ),
+        ],
+      ),
+      body: _isLoading || profileProvider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadProfile,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    // Avatar
+                    Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor:
+                            theme.colorScheme.primary.withAlpha(26),
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    // Informações do usuário
+                    _buildInfoCard(
+                      context,
+                      title: 'Usuário',
+                      content: profileProvider.profile?.username ?? '',
+                      icon: Icons.account_circle,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildInfoCard(
+                      context,
+                      title: 'E-mail',
+                      content: profileProvider.profile?.email ?? '',
+                      icon: Icons.email,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildInfoCard(
+    BuildContext context, {
+    required String title,
+    required String content,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, color: theme.colorScheme.primary),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    content,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

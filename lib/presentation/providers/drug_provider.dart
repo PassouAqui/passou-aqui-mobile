@@ -1,59 +1,111 @@
 import 'package:flutter/foundation.dart';
-import '../../domain/entities/drug.dart';
-import '../../data/services/drug_service.dart';
+import 'package:passou_aqui_mobile/data/repositories/drug_repository.dart';
+import 'package:passou_aqui_mobile/domain/entities/drug.dart';
 
-class DrugProvider extends ChangeNotifier {
-  final DrugService _drugService;
+class DrugProvider with ChangeNotifier {
+  final DrugRepository _repository;
   List<Drug> _drugs = [];
-  int _totalCount = 0;
   bool _isLoading = false;
   String? _error;
-  String? _nextUrl;
-  bool _hasMore = true;
 
-  DrugProvider(this._drugService);
+  DrugProvider(this._repository);
 
   List<Drug> get drugs => _drugs;
-  int get totalCount => _totalCount;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get hasMore => _hasMore;
 
-  Future<void> loadDrugs({bool refresh = false}) async {
-    if (_isLoading) return;
-    if (refresh) {
-      _drugs = [];
-      _nextUrl = null;
-      _hasMore = true;
-    }
-
-    if (!_hasMore && !refresh) return;
-
+  Future<void> loadDrugs({bool? active}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _drugService.getDrugs(nextUrl: _nextUrl);
-      _totalCount = response.count;
-      _nextUrl = response.next;
-      _hasMore = response.hasNext;
-
-      if (refresh) {
-        _drugs = response.results;
-      } else {
-        _drugs = [..._drugs, ...response.results];
-      }
+      _drugs = await _repository.getDrugs(active: active);
     } catch (e) {
       _error = e.toString();
-      debugPrint('❌ Erro ao carregar medicamentos: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> refresh() async {
-    await loadDrugs(refresh: true);
+  Future<void> createDrug(Drug drug) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final newDrug = await _repository.createDrug(drug);
+      _drugs.add(newDrug);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateDrug(String id, Drug drug) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final updatedDrug = await _repository.updateDrug(id, drug);
+      final index = _drugs.indexWhere((d) => d.id == id);
+      if (index != -1) {
+        _drugs[index] = updatedDrug;
+      }
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteDrug(String id) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _repository.deleteDrug(id);
+      _drugs.removeWhere((drug) => drug.id == id);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleDrugStatus(String id, bool activate) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (activate) {
+        await _repository.activateDrug(id);
+      } else {
+        await _repository.deactivateDrug(id);
+      }
+
+      final index = _drugs.indexWhere((d) => d.id == id);
+      if (index != -1) {
+        _drugs[index] = _drugs[index].copyWith(ativo: activate);
+      }
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 }

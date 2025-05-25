@@ -2,6 +2,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'data/api/api_client.dart';
 import 'data/api/auth/login.dart';
@@ -19,10 +20,13 @@ import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/profile_provider.dart';
 import 'presentation/providers/drug_provider.dart';
 import 'presentation/blocs/auth/auth_bloc.dart';
-import 'presentation/blocs/auth/auth_event.dart';
 import 'presentation/blocs/auth/auth_state.dart';
 import 'presentation/pages/main_page.dart';
 import 'presentation/pages/login_screen.dart';
+import 'presentation/pages/profile_page.dart';
+import 'data/repositories/drug_repository.dart';
+
+final getIt = GetIt.instance;
 
 class DependencyInjection {
   static Widget setup(BuildContext context) {
@@ -73,9 +77,12 @@ class DependencyInjection {
         ),
 
         // Repositories
-        ProxyProvider<AuthService, AuthRepositoryImpl>(
-          update: (_, authService, __) => AuthRepositoryImpl(
-            authService: authService,
+        Provider<AuthRepositoryImpl>(
+          create: (context) => AuthRepositoryImpl(
+            authService: AuthService(
+              LoginApi(context.read<ApiClient>()),
+              context.read<ApiClient>(),
+            ),
           ),
           lazy: true,
         ),
@@ -84,13 +91,17 @@ class DependencyInjection {
               ProfileRepositoryImpl(profileService),
           lazy: true,
         ),
+        ProxyProvider<ApiClient, DrugRepository>(
+          update: (_, apiClient, __) => DrugRepository(apiClient),
+          lazy: true,
+        ),
 
-        // Bloc
+        // Blocs
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
             context.read<AuthRepositoryImpl>(),
-          )..add(AuthCheckRequested()),
-          lazy: false,
+            context.read<ApiClient>(),
+          ),
         ),
 
         // Use cases
@@ -104,16 +115,12 @@ class DependencyInjection {
         ),
 
         // Providers
-        ChangeNotifierProxyProvider<LoginUseCase, AuthProvider>(
+        ChangeNotifierProvider<AuthProvider>(
           create: (context) => AuthProvider(
-            context.read<LoginUseCase>(),
+            LoginUseCase(context.read<AuthRepositoryImpl>()),
             context.read<ApiClient>(),
             context,
           ),
-          update: (_, loginUseCase, previous) =>
-              previous ??
-              AuthProvider(loginUseCase, context.read<ApiClient>(), context),
-          lazy: true,
         ),
         ChangeNotifierProxyProvider<GetProfileUseCase, ProfileProvider>(
           create: (context) => ProfileProvider(
@@ -123,13 +130,10 @@ class DependencyInjection {
               previous ?? ProfileProvider(getProfileUseCase),
           lazy: true,
         ),
-        ChangeNotifierProxyProvider<DrugService, DrugProvider>(
+        ChangeNotifierProvider<DrugProvider>(
           create: (context) => DrugProvider(
-            context.read<DrugService>(),
+            context.read<DrugRepository>(),
           ),
-          update: (_, drugService, previous) =>
-              previous ?? DrugProvider(drugService),
-          lazy: true,
         ),
       ],
       child: MaterialApp(
@@ -138,6 +142,10 @@ class DependencyInjection {
           primarySwatch: Colors.blue,
           useMaterial3: true,
         ),
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/profile': (context) => const ProfilePage(),
+        },
         home: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) {
             if (state is AuthAuthenticated) {
@@ -146,7 +154,34 @@ class DependencyInjection {
             return const LoginScreen();
           },
         ),
+        builder: (context, child) {
+          return BlocListener<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state is AuthUnauthenticated || state is AuthError) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
+              }
+            },
+            child: child!,
+          );
+        },
       ),
     );
   }
+}
+
+void setupDependencies() {
+  // Repositories
+  getIt.registerLazySingleton<DrugRepository>(
+    () => DrugRepository(getIt<ApiClient>()),
+  );
+  // ... existing repositories ...
+
+  // Providers
+  getIt.registerFactory<DrugProvider>(
+    () => DrugProvider(getIt<DrugRepository>()),
+  );
+  // ... existing providers ...
 }

@@ -35,113 +35,92 @@ class ApiClient {
     return _dio!;
   }
 
-  void _handleAuthError() async {
-    debugPrint('🔒 Erro de autenticação, redirecionando para login...');
-    await clearTokens();
-    _onAuthError?.call();
-  }
-
   void _initializeDio() {
     if (_isInitialized) return;
-
-    debugPrint('🌐 ApiClient: Inicializando Dio...');
-    debugPrint('🌐 ApiClient: URL Base: ${Env.apiUrl}');
 
     _dio = Dio(
       BaseOptions(
         baseUrl: Env.apiUrl,
         connectTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 3),
-        headers: Env.defaultHeaders,
       ),
     );
-
-    debugPrint('🌐 ApiClient: Configurando interceptors...');
 
     _dio!.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          try {
-            debugPrint('🌐 ApiClient: ${options.method} ${options.path}');
-            debugPrint('🌐 ApiClient: Headers: ${options.headers}');
-            debugPrint('🌐 ApiClient: Data: ${options.data}');
-
-            // Se for um endpoint público, permite a requisição sem token
-            if (_isPublicEndpoint(options.path)) {
-              debugPrint(
-                  '🔓 ApiClient: Endpoint público, permitindo requisição sem token');
-              return handler.next(options);
-            }
-
+          if (!_isPublicEndpoint(options.path)) {
             final token = await getAccessToken();
             if (token != null) {
               options.headers['Authorization'] = 'Bearer $token';
-              debugPrint('🔑 ApiClient: Token adicionado aos headers');
             } else {
-              debugPrint('❌ ApiClient: Token não encontrado');
               _handleAuthError();
               return handler.reject(
                 DioException(
                   requestOptions: options,
-                  error: 'Token não encontrado',
+                  error: 'No access token available',
                 ),
               );
             }
-            return handler.next(options);
-          } catch (e) {
-            debugPrint('❌ ApiClient: Erro ao obter token: $e');
-            _handleAuthError();
-            return handler.reject(
-              DioException(
-                requestOptions: options,
-                error: e.toString(),
-              ),
-            );
           }
-        },
-        onResponse: (response, handler) {
-          debugPrint('✅ ApiClient: Resposta recebida - ${response.statusCode}');
-          debugPrint('📦 ApiClient: Dados: ${response.data}');
-          return handler.next(response);
+          return handler.next(options);
         },
         onError: (error, handler) async {
-          debugPrint('❌ ApiClient: Erro na requisição - ${error.message}');
-          debugPrint(
-              '❌ ApiClient: Status code - ${error.response?.statusCode}');
-          debugPrint('❌ ApiClient: Resposta - ${error.response?.data}');
-
           if (error.response?.statusCode == 401 && !_isRefreshing) {
+            _isRefreshing = true;
             try {
-              _isRefreshing = true;
-              debugPrint('🔒 ApiClient: Token expirado, tentando refresh...');
-              await _refreshToken();
-              final token = await getAccessToken();
-              if (token != null) {
-                error.requestOptions.headers['Authorization'] = 'Bearer $token';
+              final refreshToken = await getRefreshToken();
+              if (refreshToken != null) {
+                final response = await _dio!.post(
+                  '/accounts/auth/refresh/',
+                  data: {'refresh': refreshToken},
+                );
+                final newToken = response.data['access'] as String;
+                await setAccessToken(newToken);
+                error.requestOptions.headers['Authorization'] =
+                    'Bearer $newToken';
                 _isRefreshing = false;
-                debugPrint(
-                    '✅ ApiClient: Token atualizado, retentando requisição');
-                return handler.resolve(await dio.fetch(error.requestOptions));
-              } else {
-                debugPrint('❌ ApiClient: Falha ao obter novo token');
-                _handleAuthError();
-                return handler.reject(error);
+                return handler.resolve(await _dio!.fetch(error.requestOptions));
               }
             } catch (e) {
-              debugPrint('❌ ApiClient: Erro ao atualizar token: $e');
+              debugPrint('❌ Erro ao atualizar token: $e');
               _handleAuthError();
-              return handler.reject(error);
-            } finally {
-              _isRefreshing = false;
             }
+            _isRefreshing = false;
           }
           return handler.next(error);
         },
       ),
     );
 
-    debugPrint('✅ ApiClient: Dio inicializado com sucesso');
     _isInitialized = true;
+  }
+
+  void _handleAuthError() async {
+    debugPrint('🔒 Erro de autenticação, notificando...');
+    await clearTokens();
+    _onAuthError?.call();
+  }
+
+  Future<String?> getAccessToken() async {
+    return await _storage.read(key: _tokenKey);
+  }
+
+  Future<String?> getRefreshToken() async {
+    return await _storage.read(key: _refreshTokenKey);
+  }
+
+  Future<void> setAccessToken(String token) async {
+    await _storage.write(key: _tokenKey, value: token);
+  }
+
+  Future<void> setRefreshToken(String token) async {
+    await _storage.write(key: _refreshTokenKey, value: token);
+  }
+
+  Future<void> clearTokens() async {
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _refreshTokenKey);
   }
 
   Future<Response> get(String path,
@@ -185,58 +164,39 @@ class ApiClient {
     }
   }
 
+  Future<Response> patch(String path, {dynamic data}) async {
+    try {
+      debugPrint('🌐 ApiClient: PATCH $path');
+      debugPrint('🌐 ApiClient: Dados: $data');
+
+      final token = await getAccessToken();
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+
+      final response = await dio.patch(
+        path,
+        data: data,
+        options: Options(headers: headers),
+      );
+
+      debugPrint('🌐 ApiClient: Resposta - Status: ${response.statusCode}');
+      debugPrint('🌐 ApiClient: Resposta - Dados: ${response.data}');
+      return response;
+    } on DioException catch (e) {
+      debugPrint('❌ ApiClient: Erro na requisição PATCH');
+      debugPrint('❌ ApiClient: Status: ${e.response?.statusCode}');
+      debugPrint('❌ ApiClient: Dados do erro: ${e.response?.data}');
+      throw _handleError(e);
+    }
+  }
+
   Future<Response> delete(String path) async {
     try {
       return await dio.delete(path);
     } on DioException catch (e) {
       throw _handleError(e);
-    }
-  }
-
-  Future<String?> getAccessToken() async {
-    return await _storage.read(key: _tokenKey);
-  }
-
-  Future<String?> getRefreshToken() async {
-    return await _storage.read(key: _refreshTokenKey);
-  }
-
-  Future<void> setAccessToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
-  }
-
-  Future<void> setRefreshToken(String token) async {
-    await _storage.write(key: _refreshTokenKey, value: token);
-  }
-
-  Future<void> clearTokens() async {
-    await _storage.delete(key: _tokenKey);
-    await _storage.delete(key: _refreshTokenKey);
-  }
-
-  Future<void> _refreshToken() async {
-    try {
-      final refreshToken = await getRefreshToken();
-      if (refreshToken == null) {
-        throw Exception('Refresh token não encontrado');
-      }
-
-      debugPrint('🔄 Atualizando token...');
-      final response = await dio.post(
-        '/accounts/auth/refresh/',
-        data: {'refresh': refreshToken},
-      );
-
-      final newToken = response.data['access'] as String;
-      final newRefreshToken = response.data['refresh'] as String;
-
-      await setAccessToken(newToken);
-      await setRefreshToken(newRefreshToken);
-      debugPrint('✅ Token atualizado com sucesso');
-    } catch (e) {
-      debugPrint('❌ Erro ao atualizar token: $e');
-      await clearTokens();
-      rethrow;
     }
   }
 

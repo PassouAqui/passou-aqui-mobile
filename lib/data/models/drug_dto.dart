@@ -40,6 +40,6 @@ class DrugDTO {
         lote: lote,
         validade: validade,
         ativo: ativo,
-        tarja: tarja,
+        tarja: Tarja.fromCode(tarja),
       );
 }
