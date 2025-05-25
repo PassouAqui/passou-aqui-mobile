@@ -2,13 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Future<void> _handleLogout() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed('/login');
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final username = authProvider.user?.username ?? 'Mundo';
+    const userName = 'Usuário';
 
     return Scaffold(
       appBar: AppBar(
@@ -17,7 +29,7 @@ class HomePage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.account_circle),
             onPressed: () {
-              if (authProvider.verifyToken()) {
+              if (authProvider.isAuthenticated) {
                 Navigator.of(context).pushNamed('/profile');
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -32,10 +44,7 @@ class HomePage extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              authProvider.logout();
-              Navigator.of(context).pushReplacementNamed('/login');
-            },
+            onPressed: _handleLogout,
           ),
         ],
       ),
@@ -44,7 +53,7 @@ class HomePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Olá, $username!',
+              'Olá, $userName!',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 20),
@@ -52,7 +61,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 40),
             ElevatedButton.icon(
               onPressed: () {
-                if (authProvider.verifyToken()) {
+                if (authProvider.isAuthenticated) {
                   Navigator.of(context).pushNamed('/profile');
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(

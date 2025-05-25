@@ -1,33 +1,22 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/foundation.dart';
-import '../models/auth_response_model.dart';
-import 'api_service.dart';
+import '../../domain/entities/auth_entity.dart';
+import '../api/auth/login.dart';
+import '../api/api_client.dart';
 
 class AuthService {
-  final ApiService _apiService;
-  final String _defaultBaseUrl = "http://10.0.2.2:8000/api/v1/";
+  final LoginApi _loginApi;
+  final ApiClient _apiClient;
 
-  AuthService(this._apiService);
+  AuthService(this._loginApi, this._apiClient);
 
-  Future<AuthResponseModel> login(String username, String password) async {
-    String baseUrl;
-    try {
-      baseUrl = dotenv.env['API_BASE_URL'] ?? _defaultBaseUrl;
-    } catch (e) {
-      debugPrint("Erro ao acessar variáveis de ambiente: $e");
-      baseUrl = _defaultBaseUrl;
-    }
+  Future<AuthEntity> login(String email, String password) async {
+    return await _loginApi(email, password);
+  }
 
-    debugPrint('🔐 Tentando login para usuário: $username');
-    debugPrint('🌐 URL de login: ${baseUrl}accounts/login/');
+  Future<void> logout() async {
+    await _apiClient.clearTokens();
+  }
 
-    final response = await _apiService.post('accounts/login/', {
-      'username': username,
-      'password': password,
-    });
-
-    debugPrint('✅ Login bem-sucedido! Tokens recebidos.');
-
-    return AuthResponseModel.fromJson(response);
+  Future<String?> getAccessToken() async {
+    return await _apiClient.getAccessToken();
   }
 }

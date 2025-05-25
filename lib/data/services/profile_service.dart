@@ -1,13 +1,18 @@
-import '../models/profile_model.dart';
-import 'api_service.dart';
+import '../../domain/entities/profile.dart';
+import '../api/profile/get_profile.dart';
+import '../api/profile/update_profile.dart';
 
 class ProfileService {
-  final ApiService _apiService;
+  final GetProfileApi _getProfileApi;
+  final UpdateProfileApi _updateProfileApi;
 
-  ProfileService(this._apiService);
+  ProfileService(this._getProfileApi, this._updateProfileApi);
 
-  Future<ProfileModel> getProfile() async {
-    final response = await _apiService.get('accounts/profile/');
-    return ProfileModel.fromJson(response);
+  Future<Profile> getProfile() async {
+    return await _getProfileApi();
+  }
+
+  Future<Profile> updateProfile(Map<String, dynamic> data) async {
+    return await _updateProfileApi(data);
   }
 }

@@ -9,7 +9,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<Profile> getProfile() async {
-    final profileModel = await _profileService.getProfile();
-    return profileModel.toEntity();
+    return await _profileService.getProfile();
   }
 }

@@ -1,69 +1,80 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../domain/entities/user.dart';
+import '../../domain/entities/auth_entity.dart';
 import '../../domain/usecases/login_usecase.dart';
-import '../../data/services/api_service.dart';
+import '../../data/api/api_client.dart';
 
 class AuthProvider extends ChangeNotifier {
   final LoginUseCase _loginUseCase;
-  final ApiService _apiService;
-  User? _user;
+  final ApiClient _apiClient;
+  final BuildContext context;
+  AuthEntity? _authEntity;
   bool _isLoading = false;
   String? _error;
 
-  AuthProvider(this._loginUseCase, this._apiService);
+  AuthProvider(this._loginUseCase, this._apiClient, this.context) {
+    _apiClient.setAuthErrorCallback(_handleAuthError);
+    _checkAuthStatus();
+  }
 
-  User? get user => _user;
+  void _handleAuthError() {
+    debugPrint('🔄 AuthProvider: Redirecionando para login...');
+    _authEntity = null;
+    notifyListeners();
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  AuthEntity? get authEntity => _authEntity;
   bool get isLoading => _isLoading;
-  bool get isLoggedIn => _user != null;
   String? get error => _error;
+  bool get isAuthenticated => _authEntity != null;
 
-  Future<bool> login(String username, String password) async {
+  Future<void> _checkAuthStatus() async {
+    try {
+      final token = await _apiClient.getAccessToken();
+      if (token != null) {
+        debugPrint('🔑 Token encontrado, configurando autenticação...');
+        _authEntity = AuthEntity(accessToken: token, refreshToken: '');
+        notifyListeners();
+      } else {
+        debugPrint('❌ Nenhum token encontrado');
+        _authEntity = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('❌ Erro ao verificar status de autenticação: $e');
+      _authEntity = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> login(String email, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _user = await _loginUseCase(username, password);
-      if (_user != null) {
-        _apiService.setAccessToken(_user!.accessToken);
-        debugPrint('🔑 Login bem-sucedido para $username');
-        debugPrint(
-          '🔒 Token configurado: ${_user!.accessToken.substring(0, _user!.accessToken.length > 20 ? 20 : _user!.accessToken.length)}...',
-        );
-      }
-      _isLoading = false;
-      notifyListeners();
-      return true;
+      debugPrint('🔑 Iniciando login...');
+      _authEntity = await _loginUseCase(email, password);
+      debugPrint('✅ Login realizado com sucesso!');
     } catch (e) {
+      debugPrint('❌ Erro no login: $e');
+      _error = e.toString();
+      _authEntity = null;
+    } finally {
       _isLoading = false;
-      if (e.toString().contains('Erro API:')) {
-        _error = e.toString();
-      } else if (e.toString().contains('401')) {
-        _error = 'Usuário ou senha inválidos';
-      } else {
-        _error = 'Erro ao fazer login: ${e.toString()}';
-      }
-      debugPrint('Erro completo de login: $e');
       notifyListeners();
-      return false;
     }
   }
 
-  bool verifyToken() {
-    if (_user == null || _user!.accessToken.isEmpty) {
-      debugPrint('⚠️ Token não disponível');
-      return false;
+  Future<void> logout() async {
+    try {
+      await _apiClient.clearTokens();
+      _authEntity = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Erro ao fazer logout: $e');
+      rethrow;
     }
-
-    _apiService.setAccessToken(_user!.accessToken);
-    debugPrint('✅ Token verificado e configurado');
-    return true;
-  }
-
-  void logout() {
-    _user = null;
-    _apiService.clearToken();
-    debugPrint('👋 Usuário deslogado');
-    notifyListeners();
   }
 }

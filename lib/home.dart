@@ -18,11 +18,19 @@ class _HomePageState extends State<HomePage> {
   String? _corredor;
   String? _setor;
 
+  @override
+  void dispose() {
+    _medicamentoController.dispose();
+    super.dispose();
+  }
+
   void _salvarMedicamentoLocalmente() async {
     final nome = _medicamentoController.text.trim();
     if (nome.isEmpty || _corredor == null || _setor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha o nome e ative a localização antes de salvar')),
+        const SnackBar(
+            content:
+                Text('Preencha o nome e ative a localização antes de salvar')),
       );
       return;
     }
@@ -38,7 +46,8 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text('Relatório de Localização do Medicamento',
-                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  style: pw.TextStyle(
+                      fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 16),
               pw.Text('Nome do Medicamento: $nome'),
               pw.Text('Corredor: $_corredor'),
@@ -54,6 +63,7 @@ class _HomePageState extends State<HomePage> {
     final file = File('${dir.path}/$nome-relatorio.pdf');
     await file.writeAsBytes(await pdf.save());
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('PDF salvo em: ${file.path}')),
     );
@@ -63,7 +73,8 @@ class _HomePageState extends State<HomePage> {
     final nomeMedicamento = _medicamentoController.text.trim();
     if (nomeMedicamento.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Digite o nome do medicamento para continuar.')),
+        const SnackBar(
+            content: Text('Digite o nome do medicamento para continuar.')),
       );
       return;
     }
@@ -117,7 +128,7 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withAlpha(26),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -143,7 +154,7 @@ class _HomePageState extends State<HomePage> {
                   decoration: InputDecoration(
                     labelText: 'Nome ou Código do Medicamento',
                     filled: true,
-                    fillColor: theme.colorScheme.surfaceVariant,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -158,7 +169,8 @@ class _HomePageState extends State<HomePage> {
                     if (_medicamentoController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Digite o nome do medicamento antes de mostrar a localização'),
+                          content: Text(
+                              'Digite o nome do medicamento antes de mostrar a localização'),
                         ),
                       );
                       return;
@@ -187,7 +199,8 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('📍 Localização Atual do Medicamento:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text('📍 Localização Atual do Medicamento:',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Text('Corredor: $_corredor'),
                           Text('Setor: $_setor'),

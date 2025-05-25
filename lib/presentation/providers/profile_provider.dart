@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/usecases/get_profile_usecase.dart';
 
@@ -16,31 +17,36 @@ class ProfileProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadProfile() async {
+    debugPrint('🔄 ProfileProvider: Iniciando carregamento do perfil');
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      debugPrint('🔍 Carregando perfil do usuário...');
+      debugPrint('🔍 ProfileProvider: Chamando GetProfileUseCase');
       _profile = await _getProfileUseCase();
-      debugPrint('✅ Perfil carregado com sucesso!');
+      debugPrint('✅ ProfileProvider: Perfil carregado com sucesso');
+      debugPrint('📦 ProfileProvider: Dados do perfil - ${_profile?.toJson()}');
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      debugPrint('❌ ProfileProvider: Erro ao carregar perfil - $e');
       _isLoading = false;
-
-      // Tratamento específico para erro de autenticação
-      if (e.toString().contains('401') ||
-          e.toString().toLowerCase().contains('unauthorized')) {
-        _error =
-            'Sessão expirada ou não autorizada. Por favor, faça login novamente.';
-        debugPrint('🔒 Erro de autenticação ao carregar perfil: $e');
-      } else {
-        _error = 'Erro ao carregar perfil: ${e.toString()}';
-        debugPrint('❌ Erro ao carregar perfil: $e');
-      }
-
+      _error = e.toString();
       notifyListeners();
+      rethrow;
     }
+  }
+}
+
+extension ProfileDebug on Profile {
+  Map<String, dynamic> toJson() {
+    return {
+      'username': username,
+      'email': email,
+      'name': name,
+      'phone': phone,
+      'photo': photo,
+    };
   }
 }

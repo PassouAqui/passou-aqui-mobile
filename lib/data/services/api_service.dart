@@ -1,127 +1,249 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import '../../main.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../config/env.dart';
+import '../../domain/entities/auth_entity.dart';
 
 class ApiService {
-  final Dio _dio;
-  String? _accessToken;
+  Dio? _dio;
+  final _storage = const FlutterSecureStorage();
+  static const String _tokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  bool _isInitialized = false;
 
-  ApiService(Dio dio) : _dio = dio {
-    // Configurar o Dio com baseUrl e outras opções
-    _dio.options.baseUrl = AppConfig.apiBaseUrl;
-    _dio.options.connectTimeout = const Duration(seconds: 15);
-    _dio.options.receiveTimeout = const Duration(seconds: 10);
-    _dio.options.headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+  Dio get dio {
+    if (_dio == null) {
+      _initializeDio();
+    }
+    return _dio!;
+  }
 
-    // Adicionar interceptor para capturar detalhes de erro
-    _dio.interceptors.add(
+  void _initializeDio() {
+    if (_isInitialized) return;
+
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: Env.apiUrl,
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 3),
+      ),
+    );
+
+    _dio!.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          // Adicionar token de autenticação se disponível
-          if (_accessToken != null) {
-            options.headers['Authorization'] = 'Bearer $_accessToken';
-            debugPrint('📤 Requisição com autenticação: ${options.uri}');
-            debugPrint('🔑 Token: Bearer $_accessToken');
-            debugPrint('📋 Headers: ${options.headers}');
-          } else {
-            debugPrint('📤 Requisição SEM autenticação: ${options.uri}');
-            debugPrint('📋 Headers: ${options.headers}');
+        onRequest: (options, handler) async {
+          try {
+            final token = await getAccessToken();
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+            return handler.next(options);
+          } catch (e) {
+            debugPrint('Erro ao obter token: $e');
+            return handler.next(options);
           }
-          return handler.next(options);
         },
-        onResponse: (response, handler) {
-          debugPrint(
-            '📥 Resposta [${response.statusCode}]: ${response.requestOptions.uri}',
-          );
-          debugPrint('📄 Dados: ${response.data}');
-          return handler.next(response);
-        },
-        onError: (DioException e, ErrorInterceptorHandler handler) {
-          if (e.response != null) {
-            debugPrint('=== ERRO DE API ===');
-            debugPrint('Status: ${e.response?.statusCode}');
-            debugPrint('Dados: ${e.response?.data}');
-            debugPrint('Headers: ${e.response?.headers}');
-            debugPrint('URL: ${e.requestOptions.uri}');
-            debugPrint('Método: ${e.requestOptions.method}');
-            debugPrint('Body: ${e.requestOptions.data}');
-            debugPrint('Headers enviados: ${e.requestOptions.headers}');
-          } else if (e.type == DioExceptionType.connectionTimeout) {
-            debugPrint('=== ERRO DE TIMEOUT DE CONEXÃO ===');
-            debugPrint('URL: ${e.requestOptions.uri}');
-            debugPrint('Método: ${e.requestOptions.method}');
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            try {
+              await _refreshToken();
+              final token = await getAccessToken();
+              if (token != null) {
+                error.requestOptions.headers['Authorization'] = 'Bearer $token';
+                return handler.resolve(await dio.fetch(error.requestOptions));
+              }
+            } catch (e) {
+              debugPrint('Erro ao atualizar token: $e');
+            }
           }
-          return handler.next(e);
+          return handler.next(error);
         },
       ),
     );
+
+    _isInitialized = true;
   }
 
-  // Método para definir o token de autenticação
-  void setAccessToken(String token) {
-    _accessToken = token;
-    debugPrint('🔐 Token configurado: $token');
-  }
-
-  // Método para limpar o token
-  void clearToken() {
-    _accessToken = null;
-    debugPrint('🔓 Token removido');
-  }
-
-  Future<dynamic> get(String path) async {
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters}) async {
     try {
-      final response = await _dio.get(path);
-      return response.data;
-    } catch (e) {
-      debugPrint('❌ Erro ao fazer GET para $path: $e');
-      _handleApiError(e);
+      return await dio.get(path, queryParameters: queryParameters);
+    } on DioException catch (e) {
+      throw _handleError(e);
     }
   }
 
-  Future<dynamic> post(String path, Map<String, dynamic> data) async {
+  Future<Response> post(String endpoint, {dynamic data}) async {
     try {
-      final response = await _dio.post(path, data: data);
-      return response.data;
-    } catch (e) {
-      return _handleApiError(e);
-    }
-  }
+      debugPrint('🌐 ApiService: POST $endpoint');
+      debugPrint('🌐 ApiService: Dados: $data');
 
-  Future<dynamic> put(String path, Map<String, dynamic> data) async {
-    try {
-      final response = await _dio.put(path, data: data);
-      return response.data;
-    } catch (e) {
-      return _handleApiError(e);
-    }
-  }
+      final token = await getAccessToken();
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+      debugPrint('🌐 ApiService: Headers: $headers');
 
-  Future<void> delete(String path) async {
-    try {
-      await _dio.delete(path);
-    } catch (e) {
-      _handleApiError(e);
-    }
-  }
+      final response = await dio.post(
+        '${Env.apiUrl}$endpoint',
+        data: data,
+        options: Options(headers: headers),
+      );
 
-  dynamic _handleApiError(dynamic e) {
-    if (e is DioException) {
-      if (e.type == DioExceptionType.connectionTimeout) {
-        throw Exception(
-          'Erro de conexão: O servidor demorou para responder. Verifique sua conexão com a internet ou se o servidor está online.',
-        );
-      } else if (e.response != null) {
-        // Extrair a mensagem de erro da resposta, se existir
-        final responseData = e.response!.data;
-        if (responseData is Map && responseData.containsKey('detail')) {
-          throw Exception('Erro API: ${responseData['detail']}');
+      debugPrint('🌐 ApiService: Resposta - Status: ${response.statusCode}');
+      debugPrint('🌐 ApiService: Resposta - Dados: ${response.data}');
+
+      return response;
+    } on DioException catch (e) {
+      debugPrint('❌ ApiService: Erro DioException - ${e.message}');
+      debugPrint('❌ ApiService: Resposta de erro - ${e.response?.data}');
+      if (e.response?.statusCode == 401) {
+        debugPrint('🔒 ApiService: Token expirado, tentando refresh...');
+        try {
+          final currentRefreshToken = await getRefreshToken();
+          if (currentRefreshToken == null) {
+            debugPrint('❌ ApiService: Sem refresh token disponível');
+            await clearTokens();
+            rethrow;
+          }
+
+          final newTokens = await refreshToken(currentRefreshToken);
+          await setAccessToken(newTokens.accessToken);
+          debugPrint('✅ ApiService: Token atualizado com sucesso');
+
+          // Retry the original request
+          final token = await getAccessToken();
+          final headers = {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          };
+
+          final response = await dio.post(
+            '${Env.apiUrl}$endpoint',
+            data: data,
+            options: Options(headers: headers),
+          );
+
+          debugPrint(
+              '🌐 ApiService: Retry bem-sucedido - Status: ${response.statusCode}');
+          return response;
+        } catch (refreshError) {
+          debugPrint('❌ ApiService: Erro ao atualizar token: $refreshError');
+          await clearTokens();
+          rethrow;
         }
       }
+      rethrow;
     }
-    throw e;
+  }
+
+  Future<Response> put(String path, {dynamic data}) async {
+    try {
+      return await dio.put(path, data: data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response> delete(String path) async {
+    try {
+      return await dio.delete(path);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<AuthEntity> refreshToken(String refreshToken) async {
+    try {
+      final response = await dio.post(
+        '/accounts/auth/refresh/',
+        data: {'refresh': refreshToken},
+      );
+
+      final newToken = response.data['access'] as String;
+      final newRefreshToken = response.data['refresh'] as String;
+      await _saveAccessToken(newToken);
+      await _saveRefreshToken(newRefreshToken);
+      return AuthEntity(
+        accessToken: newToken,
+        refreshToken: newRefreshToken,
+      );
+    } catch (e) {
+      debugPrint('Erro ao atualizar token: $e');
+      await clearTokens();
+      rethrow;
+    }
+  }
+
+  Future<void> _refreshToken() async {
+    try {
+      final refreshToken = await _getRefreshToken();
+      if (refreshToken == null) {
+        throw 'Refresh token não encontrado';
+      }
+
+      debugPrint('Atualizando token...');
+      final response = await dio.post(
+        '/accounts/auth/refresh/',
+        data: {'refresh': refreshToken},
+      );
+
+      final newToken = response.data['access'] as String;
+      await _saveAccessToken(newToken);
+      debugPrint('Token atualizado com sucesso');
+    } catch (e) {
+      debugPrint('Erro ao atualizar token: $e');
+      await clearTokens();
+      rethrow;
+    }
+  }
+
+  Future<String?> getAccessToken() async {
+    return await _storage.read(key: _tokenKey);
+  }
+
+  Future<void> setAccessToken(String token) async {
+    await _saveAccessToken(token);
+  }
+
+  Future<String?> getRefreshToken() async {
+    return await _getRefreshToken();
+  }
+
+  Future<String?> _getRefreshToken() async {
+    return await _storage.read(key: _refreshTokenKey);
+  }
+
+  Future<void> _saveAccessToken(String token) async {
+    await _storage.write(key: _tokenKey, value: token);
+  }
+
+  Future<void> _saveRefreshToken(String token) async {
+    await _storage.write(key: _refreshTokenKey, value: token);
+  }
+
+  Future<void> clearTokens() async {
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+  }
+
+  String _handleError(DioException error) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return 'Tempo de conexão esgotado. Verifique sua internet.';
+    }
+
+    if (error.type == DioExceptionType.unknown) {
+      return 'Erro de conexão. Verifique sua internet.';
+    }
+
+    final statusCode = error.response?.statusCode;
+    final message = error.response?.data?['message'] ??
+        error.response?.data?['detail'] ??
+        error.message ??
+        'Erro desconhecido';
+
+    return '$message${statusCode != null ? ' (Status: $statusCode)' : ''}';
   }
 }
