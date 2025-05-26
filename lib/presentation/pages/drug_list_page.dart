@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:passou_aqui_mobile/domain/entities/drug.dart';
 import 'package:passou_aqui_mobile/presentation/providers/drug_provider.dart';
 import 'package:passou_aqui_mobile/presentation/widgets/drug_form.dart';
+import 'package:passou_aqui_mobile/presentation/widgets/pagination_controls.dart';
+import 'package:passou_aqui_mobile/presentation/widgets/drug_filter.dart';
 import 'package:passou_aqui_mobile/presentation/pages/drug_detail_page.dart';
 
 class DrugListPage extends StatefulWidget {
@@ -13,8 +15,6 @@ class DrugListPage extends StatefulWidget {
 }
 
 class _DrugListPageState extends State<DrugListPage> {
-  bool _showOnlyActive = true;
-
   @override
   void initState() {
     super.initState();
@@ -23,64 +23,12 @@ class _DrugListPageState extends State<DrugListPage> {
     });
   }
 
-  Future<void> _loadDrugs() async {
+  Future<void> _loadDrugs({bool refresh = false}) async {
     await Provider.of<DrugProvider>(context, listen: false)
-        .loadDrugs(active: _showOnlyActive);
+        .loadDrugs(refresh: refresh);
   }
 
-  Future<bool> _showDeleteConfirmation(Drug drug) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: Text(
-          'Tem certeza que deseja excluir o medicamento "${drug.nome}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        await Provider.of<DrugProvider>(context, listen: false)
-            .deleteDrug(drug.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Medicamento excluído com sucesso'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-        return true;
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro ao excluir medicamento: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return false;
-      }
-    }
-    return false;
-  }
-
-  Future<void> _showDrugForm({Drug? drug}) async {
+  Future<void> _showDrugForm(BuildContext context, [Drug? drug]) async {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -98,7 +46,8 @@ class _DrugListPageState extends State<DrugListPage> {
   }
 
   void _showDrugDetails(Drug drug) {
-    Navigator.of(context).push(
+    Navigator.push(
+      context,
       MaterialPageRoute(
         builder: (context) => DrugDetailPage(drug: drug),
       ),
@@ -108,236 +57,222 @@ class _DrugListPageState extends State<DrugListPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final drugProvider = Provider.of<DrugProvider>(context);
+    final provider = Provider.of<DrugProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Medicamentos'),
         actions: [
           IconButton(
-            icon: Icon(
-                _showOnlyActive ? Icons.filter_list : Icons.filter_list_off),
-            onPressed: () {
-              setState(() {
-                _showOnlyActive = !_showOnlyActive;
-              });
-              _loadDrugs();
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDrugs,
+            icon: const Icon(Icons.add),
+            tooltip: 'Adicionar Medicamento',
+            onPressed: () => _showDrugForm(context),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showDrugForm(),
-        child: const Icon(Icons.add),
-      ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: theme.colorScheme.primaryContainer,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total de Medicamentos: ${drugProvider.drugs.length}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                Text(
-                  'Ativos: ${drugProvider.drugs.where((d) => d.ativo).length}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
+          DrugFilter(
+            onSearchChanged: provider.setSearchQuery,
+            onActiveFilterChanged: provider.setActiveFilter,
+            onTarjaFilterChanged: provider.setTarjaFilter,
+            onClearFilters: provider.clearFilters,
+            showOnlyActive: provider.showOnlyActive,
+            selectedTarja: provider.selectedTarja,
+            searchQuery: provider.searchQuery,
           ),
           Expanded(
-            child: drugProvider.isLoading
+            child: provider.isLoading && provider.drugs.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : drugProvider.error != null
+                : provider.drugs.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              'Erro ao carregar medicamentos',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.red,
-                              ),
+                            Icon(
+                              Icons.medication_outlined,
+                              size: 64,
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _loadDrugs,
-                              child: const Text('Tentar Novamente'),
+                            Text(
+                              'Nenhum medicamento encontrado',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
                       )
-                    : drugProvider.drugs.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Nenhum medicamento encontrado',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadDrugs,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: drugProvider.drugs.length,
-                              itemBuilder: (context, index) {
-                                final drug = drugProvider.drugs[index];
-                                return Dismissible(
-                                  key: Key(drug.id),
-                                  direction: DismissDirection.horizontal,
-                                  confirmDismiss: (direction) async {
-                                    if (direction ==
-                                        DismissDirection.endToStart) {
-                                      return await _showDeleteConfirmation(
-                                          drug);
-                                    }
-                                    return true;
-                                  },
-                                  onDismissed: (direction) {
-                                    if (direction ==
-                                        DismissDirection.startToEnd) {
-                                      _showDrugForm(drug: drug);
-                                    }
-                                  },
-                                  background: Card(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    color: theme.colorScheme.primary,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.edit,
-                                            color: Colors.white,
+                    : RefreshIndicator(
+                        onRefresh: () => _loadDrugs(refresh: true),
+                        child: ListView.builder(
+                          itemCount: provider.drugs.length,
+                          itemBuilder: (context, index) {
+                            final drug = provider.drugs[index];
+                            return Dismissible(
+                              key: Key(drug.id),
+                              direction: DismissDirection.horizontal,
+                              confirmDismiss: (direction) async {
+                                if (direction == DismissDirection.endToStart) {
+                                  // Deslizar para esquerda - Editar
+                                  await _showDrugForm(context, drug);
+                                  return false; // Não remove o item
+                                } else {
+                                  // Deslizar para direita - Excluir/Ativar
+                                  if (drug.ativo) {
+                                    return await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text(
+                                                'Desativar Medicamento'),
+                                            content: const Text(
+                                                'Tem certeza que deseja desativar este medicamento?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, false),
+                                                child: const Text('Cancelar'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, true),
+                                                child: const Text('Desativar'),
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Editar',
-                                            style: theme.textTheme.titleMedium
-                                                ?.copyWith(
-                                              color: Colors.white,
-                                            ),
+                                        ) ??
+                                        false;
+                                  } else {
+                                    return await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text(
+                                                'Ativar Medicamento'),
+                                            content: const Text(
+                                                'Tem certeza que deseja ativar este medicamento?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, false),
+                                                child: const Text('Cancelar'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, true),
+                                                child: const Text('Ativar'),
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ) ??
+                                        false;
+                                  }
+                                }
+                              },
+                              background: Container(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(left: 16),
+                                color: drug.ativo ? Colors.red : Colors.green,
+                                child: Icon(
+                                  drug.ativo
+                                      ? Icons.delete_outline
+                                      : Icons.restore,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              secondaryBackground: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 16),
+                                color: Colors.blue,
+                                child: const Icon(
+                                  Icons.edit,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              onDismissed: (direction) {
+                                if (direction == DismissDirection.startToEnd) {
+                                  provider.toggleDrugStatus(
+                                      drug.id, !drug.ativo);
+                                }
+                              },
+                              child: Card(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: InkWell(
+                                  onTap: () => _showDrugDetails(drug),
+                                  child: ListTile(
+                                    title: Text(
+                                      drug.nome,
+                                      style:
+                                          theme.textTheme.titleMedium?.copyWith(
+                                        color: drug.ativo
+                                            ? theme.colorScheme.onSurface
+                                            : theme.colorScheme.onSurface
+                                                .withAlpha(128),
                                       ),
                                     ),
-                                  ),
-                                  secondaryBackground: Card(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    color: Colors.red,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            'Excluir',
-                                            style: theme.textTheme.titleMedium
-                                                ?.copyWith(
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Icon(
-                                            Icons.delete,
-                                            color: Colors.white,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  child: Card(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(
-                                        color: _getTarjaColor(drug.tarja),
-                                        width: 0.5,
-                                        style: BorderStyle.solid,
-                                      ),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: Stack(
+                                    subtitle: Text('Lote: ${drug.lote}'),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Positioned(
-                                          right: 0,
-                                          top: 0,
-                                          bottom: 0,
-                                          width: 0.5,
-                                          child: Container(
-                                            color: _getTarjaColor(drug.tarja),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: drug.ativo
+                                                ? Colors.green
+                                                : Colors.red,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            drug.ativo ? 'Ativo' : 'Inativo',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
                                           ),
                                         ),
-                                        InkWell(
-                                          onTap: () => _showDrugDetails(drug),
-                                          child: ListTile(
-                                            title: Text(
-                                              drug.nome,
-                                              style: theme.textTheme.titleMedium
-                                                  ?.copyWith(
-                                                color: drug.ativo
-                                                    ? theme
-                                                        .colorScheme.onSurface
-                                                    : theme
-                                                        .colorScheme.onSurface
-                                                        .withAlpha(128),
-                                              ),
-                                            ),
-                                            subtitle:
-                                                Text('Lote: ${drug.lote}'),
-                                            trailing: IconButton(
-                                              icon: Icon(
-                                                drug.ativo
-                                                    ? Icons.visibility
-                                                    : Icons.visibility_off,
-                                              ),
-                                              onPressed: () {
-                                                Provider.of<DrugProvider>(
-                                                        context,
-                                                        listen: false)
-                                                    .toggleDrugStatus(
-                                                        drug.id, !drug.ativo);
-                                              },
-                                            ),
-                                          ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          color: theme.colorScheme.onSurface
+                                              .withAlpha(128),
                                         ),
                                       ],
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                          ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
           ),
+          if (provider.drugs.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: PaginationControls(
+                currentPage: provider.currentPage,
+                totalPages: provider.totalPages,
+                hasNext: provider.hasNext,
+                hasPrevious: provider.hasPrevious,
+                isLoading: provider.isLoading,
+                onNext: provider.hasNext
+                    ? () => provider.loadDrugs(page: provider.currentPage + 1)
+                    : null,
+                onPrevious: provider.hasPrevious
+                    ? () => provider.loadDrugs(page: provider.currentPage - 1)
+                    : null,
+                onPageSelected: (page) => provider.loadDrugs(page: page),
+              ),
+            ),
         ],
       ),
     );
-  }
-
-  Color _getTarjaColor(Tarja tarja) {
-    switch (tarja) {
-      case Tarja.semTarja:
-        return Colors.green;
-      case Tarja.amarela:
-        return Colors.amber;
-      case Tarja.vermelha:
-        return Colors.red;
-      case Tarja.preta:
-        return Colors.black;
-    }
   }
 }

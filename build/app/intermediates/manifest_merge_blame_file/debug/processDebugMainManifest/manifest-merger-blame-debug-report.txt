@@ -48,7 +48,7 @@
 34        android:debuggable="true"
 35        android:extractNativeLibs="true"
 36        android:icon="@mipmap/ic_launcher"
-37        android:label="Procure Aqui" >
+37        android:label="Passou Aqui" >
 38        <activity
 39            android:name="com.example.passou_aqui_mobile.MainActivity"
 40            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

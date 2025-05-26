@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../../home.dart';
 import 'profile_page.dart';
-import 'new_page.dart';
 import 'drugs_page.dart';
+import 'dashboard_page.dart';
 
 class MainPage extends StatefulWidget {
   final int initialIndex;
@@ -28,8 +28,8 @@ class _MainPageState extends State<MainPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
+    const DashboardPage(),
     const DrugsPage(),
-    const NewPage(),
     const ProfilePage(),
   ];
 

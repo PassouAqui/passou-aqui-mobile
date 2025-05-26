@@ -15,7 +15,7 @@ class PaginatedResponse<T> {
     Map<String, dynamic> json,
     T Function(Map<String, dynamic>) fromJson,
   ) {
-    return PaginatedResponse(
+    return PaginatedResponse<T>(
       count: json['count'] as int,
       next: json['next'] as String?,
       previous: json['previous'] as String?,

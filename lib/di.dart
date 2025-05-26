@@ -25,6 +25,8 @@ import 'presentation/pages/main_page.dart';
 import 'presentation/pages/login_screen.dart';
 import 'presentation/pages/profile_page.dart';
 import 'data/repositories/drug_repository.dart';
+import 'data/repositories/dashboard_repository.dart';
+import 'presentation/providers/dashboard_provider.dart';
 
 final getIt = GetIt.instance;
 
@@ -95,6 +97,10 @@ class DependencyInjection {
           update: (_, apiClient, __) => DrugRepository(apiClient),
           lazy: true,
         ),
+        ProxyProvider<ApiClient, DashboardRepository>(
+          update: (_, apiClient, __) => DashboardRepository(apiClient),
+          lazy: true,
+        ),
 
         // Blocs
         BlocProvider<AuthBloc>(
@@ -133,6 +139,11 @@ class DependencyInjection {
         ChangeNotifierProvider<DrugProvider>(
           create: (context) => DrugProvider(
             context.read<DrugRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider<DashboardProvider>(
+          create: (context) => DashboardProvider(
+            context.read<DashboardRepository>(),
           ),
         ),
       ],

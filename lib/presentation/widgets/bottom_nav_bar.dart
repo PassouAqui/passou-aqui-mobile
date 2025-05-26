@@ -23,14 +23,14 @@ class BottomNavBar extends StatelessWidget {
           label: 'Início',
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_outlined),
+          activeIcon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.medication_outlined),
           activeIcon: Icon(Icons.medication),
           label: 'Medicamentos',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.add_circle_outline),
-          activeIcon: Icon(Icons.add_circle),
-          label: 'Novo',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
