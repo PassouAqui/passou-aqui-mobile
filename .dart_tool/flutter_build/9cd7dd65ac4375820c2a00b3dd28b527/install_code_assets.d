@@ -1,1 +1,0 @@
- C:\\Users\\jp\\Documents\\passou-aqui\\passou-aqui-mobile\\.dart_tool\\flutter_build\\9cd7dd65ac4375820c2a00b3dd28b527\\native_assets.json: 
