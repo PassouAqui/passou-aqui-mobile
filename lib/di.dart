@@ -27,11 +27,21 @@ import 'presentation/pages/profile_page.dart';
 import 'data/repositories/drug_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
 import 'presentation/providers/dashboard_provider.dart';
+import 'data/database/database_helper.dart';
+import 'data/repositories/user_preferences_repository_impl.dart';
+import 'domain/repositories/user_preferences_repository.dart';
+import 'domain/usecases/user_preferences_usecase.dart';
+import 'presentation/providers/user_preferences_provider.dart';
+import 'presentation/pages/preferences_page.dart';
+import 'presentation/widgets/app_theme.dart';
 
 final getIt = GetIt.instance;
 
 class DependencyInjection {
   static Widget setup(BuildContext context) {
+    // Primeiro, garantir que todas as dependências estejam configuradas
+    setupDependencies();
+
     return MultiProvider(
       providers: [
         // Core services
@@ -147,37 +157,43 @@ class DependencyInjection {
           ),
         ),
       ],
-      child: MaterialApp(
-        title: 'Passou Aqui',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/profile': (context) => const ProfilePage(),
-        },
-        home: BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, state) {
-            if (state is AuthAuthenticated) {
-              return const MainPage();
-            }
-            return const LoginScreen();
+      child: AppTheme(
+        child: Builder(
+          builder: (context) {
+            return MaterialApp(
+              title: 'Passou Aqui',
+              theme: Theme.of(context),
+              darkTheme: Theme.of(context),
+              themeMode: ThemeMode.system,
+              routes: {
+                '/login': (context) => const LoginScreen(),
+                '/profile': (context) => const ProfilePage(),
+                '/preferences': (context) => const PreferencesPage(),
+              },
+              home: BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) {
+                  if (state is AuthAuthenticated) {
+                    return const MainPage();
+                  }
+                  return const LoginScreen();
+                },
+              ),
+              builder: (context, child) {
+                return BlocListener<AuthBloc, AuthState>(
+                  listener: (context, state) {
+                    if (state is AuthUnauthenticated || state is AuthError) {
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/login',
+                        (route) => false,
+                      );
+                    }
+                  },
+                  child: child!,
+                );
+              },
+            );
           },
         ),
-        builder: (context, child) {
-          return BlocListener<AuthBloc, AuthState>(
-            listener: (context, state) {
-              if (state is AuthUnauthenticated || state is AuthError) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login',
-                  (route) => false,
-                );
-              }
-            },
-            child: child!,
-          );
-        },
       ),
     );
   }
@@ -195,4 +211,26 @@ void setupDependencies() {
     () => DrugProvider(getIt<DrugRepository>()),
   );
   // ... existing providers ...
+
+  // Database
+  getIt.registerLazySingleton<DatabaseHelper>(() => DatabaseHelper.instance);
+
+  // User Preferences - Garantir que está registrado antes de ser usado
+  getIt.registerLazySingleton<UserPreferencesRepository>(
+    () => UserPreferencesRepositoryImpl(getIt<DatabaseHelper>()),
+  );
+
+  getIt.registerLazySingleton<UserPreferencesUseCase>(
+    () => UserPreferencesUseCase(getIt<UserPreferencesRepository>()),
+  );
+
+  // Mudando de registerFactory para registerLazySingleton para manter a instância
+  getIt.registerLazySingleton<UserPreferencesProvider>(
+    () => UserPreferencesProvider(getIt<UserPreferencesUseCase>()),
+  );
+}
+
+// Adicionar um método para obter o provider
+UserPreferencesProvider getUserPreferencesProvider() {
+  return getIt<UserPreferencesProvider>();
 }

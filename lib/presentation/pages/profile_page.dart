@@ -140,6 +140,32 @@ class _ProfilePageState extends State<ProfilePage>
                       content: profileProvider.profile?.email ?? '',
                       icon: Icons.email,
                     ),
+                    const SizedBox(height: 16),
+                    // Preferências
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.settings,
+                          color: theme.colorScheme.primary,
+                        ),
+                        title: Text(
+                          'Preferências',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: const Text('Personalize sua experiência'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/preferences');
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),

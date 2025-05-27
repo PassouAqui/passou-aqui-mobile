@@ -29,6 +29,7 @@ INJECTED from C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\android\app\s
 MERGED from [:shared_preferences_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\shared_preferences_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [:flutter_secure_storage] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\flutter_secure_storage\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-10:12
 MERGED from [:path_provider_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:sqflite_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\sqflite_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.preference:preference:1.2.1] C:\Users\jp\.gradle\caches\8.10.2\transforms\0098a6e93522fecc805d8900172003dc\transformed\preference-1.2.1\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.appcompat:appcompat:1.1.0] C:\Users\jp\.gradle\caches\8.10.2\transforms\3a4dcd3e8c92efa77cfa193b658940d9\transformed\appcompat-1.1.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.fragment:fragment-ktx:1.7.1] C:\Users\jp\.gradle\caches\8.10.2\transforms\2e4c2e4e231b6a1dd462fb9cdc4ff977\transformed\jetified-fragment-ktx-1.7.1\AndroidManifest.xml:2:1-7:12
@@ -116,6 +117,8 @@ MERGED from [:flutter_secure_storage] C:\Users\jp\Documents\passou-aqui\passou-a
 MERGED from [:flutter_secure_storage] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\flutter_secure_storage\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:6:5-8:53
 MERGED from [:path_provider_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [:path_provider_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:sqflite_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\sqflite_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:sqflite_android] C:\Users\jp\Documents\passou-aqui\passou-aqui-mobile\build\sqflite_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [androidx.preference:preference:1.2.1] C:\Users\jp\.gradle\caches\8.10.2\transforms\0098a6e93522fecc805d8900172003dc\transformed\preference-1.2.1\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.preference:preference:1.2.1] C:\Users\jp\.gradle\caches\8.10.2\transforms\0098a6e93522fecc805d8900172003dc\transformed\preference-1.2.1\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.appcompat:appcompat:1.1.0] C:\Users\jp\.gradle\caches\8.10.2\transforms\3a4dcd3e8c92efa77cfa193b658940d9\transformed\appcompat-1.1.0\AndroidManifest.xml:20:5-22:41

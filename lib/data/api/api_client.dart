@@ -41,8 +41,10 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: Env.apiUrl,
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 3),
+        connectTimeout: const Duration(milliseconds: Env.connectionTimeout),
+        receiveTimeout: const Duration(milliseconds: Env.receiveTimeout),
+        sendTimeout: const Duration(milliseconds: Env.connectionTimeout),
+        headers: Env.defaultHeaders,
       ),
     );
 
