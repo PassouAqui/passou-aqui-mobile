@@ -1,3 +1,6 @@
 build/
 .dart_tool/
 *.apk
+# Flutter build artifacts
+.dart_tool/
+build/
