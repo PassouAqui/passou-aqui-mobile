@@ -24,7 +24,7 @@ class LightTheme {
         onError: AppColors.white,
         errorContainer: AppColors.error.withAlpha(25),
         onErrorContainer: AppColors.error,
-        surface: AppColors.white,
+        surface: AppColors.gray50,
         onSurface: AppColors.gray800,
         surfaceContainerHighest: AppColors.gray100,
         onSurfaceVariant: AppColors.gray700,
@@ -37,7 +37,6 @@ class LightTheme {
         inversePrimary: AppColors.blue400,
         surfaceTint: AppColors.blue600,
       ),
-      // Customize component themes
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.white,
         foregroundColor: AppColors.gray800,

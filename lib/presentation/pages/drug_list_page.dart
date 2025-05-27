@@ -64,6 +64,11 @@ class _DrugListPageState extends State<DrugListPage> {
         title: const Text('Medicamentos'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Atualizar Lista',
+            onPressed: () => _loadDrugs(refresh: true),
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Adicionar Medicamento',
             onPressed: () => _showDrugForm(context),
@@ -117,62 +122,92 @@ class _DrugListPageState extends State<DrugListPage> {
                                 if (direction == DismissDirection.endToStart) {
                                   // Deslizar para esquerda - Editar
                                   await _showDrugForm(context, drug);
-                                  return false; // Não remove o item
+                                  return false; // Não remove o item pois é edição
                                 } else {
-                                  // Deslizar para direita - Excluir/Ativar
+                                  // Deslizar para direita - Desativar/Ativar
                                   if (drug.ativo) {
-                                    return await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text(
-                                                'Desativar Medicamento'),
-                                            content: const Text(
-                                                'Tem certeza que deseja desativar este medicamento?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                    context, false),
-                                                child: const Text('Cancelar'),
+                                    final shouldDismiss =
+                                        await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text(
+                                                    'Desativar Medicamento'),
+                                                content: const Text(
+                                                    'Tem certeza que deseja desativar este medicamento?'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context, false),
+                                                    child:
+                                                        const Text('Cancelar'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context, true),
+                                                    child:
+                                                        const Text('Desativar'),
+                                                  ),
+                                                ],
                                               ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                    context, true),
-                                                child: const Text('Desativar'),
-                                              ),
-                                            ],
-                                          ),
-                                        ) ??
-                                        false;
+                                            ) ??
+                                            false;
+
+                                    if (shouldDismiss) {
+                                      await provider.toggleDrugStatus(
+                                          drug.id, false);
+                                      await _loadDrugs(refresh: true);
+                                    }
+                                    return shouldDismiss;
                                   } else {
-                                    return await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text(
-                                                'Ativar Medicamento'),
-                                            content: const Text(
-                                                'Tem certeza que deseja ativar este medicamento?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                    context, false),
-                                                child: const Text('Cancelar'),
+                                    final shouldDismiss =
+                                        await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text(
+                                                    'Ativar Medicamento'),
+                                                content: const Text(
+                                                    'Tem certeza que deseja ativar este medicamento?'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context, false),
+                                                    child:
+                                                        const Text('Cancelar'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            context, true),
+                                                    child: const Text('Ativar'),
+                                                  ),
+                                                ],
                                               ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                    context, true),
-                                                child: const Text('Ativar'),
-                                              ),
-                                            ],
-                                          ),
-                                        ) ??
-                                        false;
+                                            ) ??
+                                            false;
+
+                                    if (shouldDismiss) {
+                                      await provider.toggleDrugStatus(
+                                          drug.id, true);
+                                      await _loadDrugs(refresh: true);
+                                    }
+                                    return shouldDismiss;
                                   }
                                 }
                               },
                               background: Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: drug.ativo ? Colors.red : Colors.green,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 alignment: Alignment.centerLeft,
                                 padding: const EdgeInsets.only(left: 16),
-                                color: drug.ativo ? Colors.red : Colors.green,
                                 child: Icon(
                                   drug.ativo
                                       ? Icons.delete_outline
@@ -181,19 +216,23 @@ class _DrugListPageState extends State<DrugListPage> {
                                 ),
                               ),
                               secondaryBackground: Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 alignment: Alignment.centerRight,
                                 padding: const EdgeInsets.only(right: 16),
-                                color: Colors.blue,
                                 child: const Icon(
                                   Icons.edit,
                                   color: Colors.white,
                                 ),
                               ),
-                              onDismissed: (direction) {
-                                if (direction == DismissDirection.startToEnd) {
-                                  provider.toggleDrugStatus(
-                                      drug.id, !drug.ativo);
-                                }
+                              onDismissed: (_) {
+                                // Não precisamos fazer nada aqui pois a ação já foi executada no confirmDismiss
                               },
                               child: Card(
                                 margin: const EdgeInsets.symmetric(
