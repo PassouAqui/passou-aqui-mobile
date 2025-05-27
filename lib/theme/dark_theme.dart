@@ -42,7 +42,7 @@ class DarkTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.darkSurface,
         elevation: 2,
         shape: RoundedRectangleBorder(

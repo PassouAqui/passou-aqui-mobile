@@ -82,7 +82,7 @@ class AppTheme extends StatelessWidget {
       iconTheme: IconThemeData(
         color: highContrastColors['onSurface'],
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: highContrastColors['surface'],
         elevation: 4,
       ),
