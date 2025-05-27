@@ -18,6 +18,7 @@ class ApiClient {
   static const List<String> _publicEndpoints = [
     '/accounts/auth/login/',
     '/accounts/auth/refresh/',
+    '/accounts/register/',
   ];
 
   bool _isPublicEndpoint(String path) {
@@ -55,14 +56,6 @@ class ApiClient {
             final token = await getAccessToken();
             if (token != null) {
               options.headers['Authorization'] = 'Bearer $token';
-            } else {
-              _handleAuthError();
-              return handler.reject(
-                DioException(
-                  requestOptions: options,
-                  error: 'No access token available',
-                ),
-              );
             }
           }
           return handler.next(options);
@@ -71,25 +64,24 @@ class ApiClient {
           if (error.response?.statusCode == 401 && !_isRefreshing) {
             _isRefreshing = true;
             try {
+              debugPrint('🔄 ApiClient: Token expirado, tentando refresh...');
               final refreshToken = await getRefreshToken();
               if (refreshToken != null) {
-                final response = await _dio!.post(
-                  '/accounts/auth/refresh/',
-                  data: {'refresh': refreshToken},
-                );
-                final newToken = response.data['access'] as String;
-                await setAccessToken(newToken);
+                final newToken = await _refreshToken(refreshToken);
                 error.requestOptions.headers['Authorization'] =
                     'Bearer $newToken';
+                debugPrint('✅ ApiClient: Token atualizado com sucesso');
                 _isRefreshing = false;
                 return handler.resolve(await _dio!.fetch(error.requestOptions));
               }
             } catch (e) {
-              debugPrint('❌ Erro ao atualizar token: $e');
-              _handleAuthError();
+              debugPrint('❌ ApiClient: Erro ao atualizar token - $e');
+              _isRefreshing = false;
+              await clearTokens();
+              _onAuthError?.call();
             }
-            _isRefreshing = false;
           }
+          _isRefreshing = false;
           return handler.next(error);
         },
       ),
@@ -98,116 +90,148 @@ class ApiClient {
     _isInitialized = true;
   }
 
-  void _handleAuthError() async {
-    debugPrint('🔒 Erro de autenticação, notificando...');
-    await clearTokens();
-    _onAuthError?.call();
-  }
-
   Future<String?> getAccessToken() async {
-    return await _storage.read(key: _tokenKey);
+    try {
+      debugPrint('🔍 ApiClient: Buscando access token...');
+      final token = await _storage.read(key: _tokenKey);
+      debugPrint(token != null
+          ? '✅ ApiClient: Token encontrado'
+          : 'ℹ️ ApiClient: Token não encontrado');
+      return token;
+    } catch (e) {
+      debugPrint('❌ ApiClient: Erro ao buscar access token - $e');
+      return null;
+    }
   }
 
   Future<String?> getRefreshToken() async {
-    return await _storage.read(key: _refreshTokenKey);
+    try {
+      debugPrint('🔍 ApiClient: Buscando refresh token...');
+      final token = await _storage.read(key: _refreshTokenKey);
+      debugPrint(token != null
+          ? '✅ ApiClient: Refresh token encontrado'
+          : 'ℹ️ ApiClient: Refresh token não encontrado');
+      return token;
+    } catch (e) {
+      debugPrint('❌ ApiClient: Erro ao buscar refresh token - $e');
+      return null;
+    }
   }
 
   Future<void> setAccessToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+    try {
+      debugPrint('💾 ApiClient: Salvando access token...');
+      await _storage.write(key: _tokenKey, value: token);
+      debugPrint('✅ ApiClient: Access token salvo com sucesso');
+    } catch (e) {
+      debugPrint('❌ ApiClient: Erro ao salvar access token - $e');
+      rethrow;
+    }
   }
 
   Future<void> setRefreshToken(String token) async {
-    await _storage.write(key: _refreshTokenKey, value: token);
+    try {
+      debugPrint('💾 ApiClient: Salvando refresh token...');
+      await _storage.write(key: _refreshTokenKey, value: token);
+      debugPrint('✅ ApiClient: Refresh token salvo com sucesso');
+    } catch (e) {
+      debugPrint('❌ ApiClient: Erro ao salvar refresh token - $e');
+      rethrow;
+    }
+  }
+
+  Future<String> _refreshToken(String refreshToken) async {
+    try {
+      debugPrint('🔄 ApiClient: Iniciando refresh do token...');
+      final response = await _dio!.post(
+        '/accounts/auth/refresh/',
+        data: {'refresh': refreshToken},
+      );
+
+      if (response.statusCode == 200) {
+        final newToken = response.data['access'] as String;
+        await setAccessToken(newToken);
+        debugPrint('✅ ApiClient: Token atualizado com sucesso');
+        return newToken;
+      } else {
+        throw Exception('Falha ao atualizar token');
+      }
+    } catch (e) {
+      debugPrint('❌ ApiClient: Erro ao atualizar token - $e');
+      rethrow;
+    }
   }
 
   Future<void> clearTokens() async {
-    await _storage.delete(key: _tokenKey);
-    await _storage.delete(key: _refreshTokenKey);
+    try {
+      debugPrint('🧹 ApiClient: Limpando tokens...');
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _refreshTokenKey);
+      debugPrint('✅ ApiClient: Tokens limpos com sucesso');
+    } catch (e) {
+      debugPrint('❌ ApiClient: Erro ao limpar tokens - $e');
+      rethrow;
+    }
   }
 
   Future<Response> get(String path,
       {Map<String, dynamic>? queryParameters}) async {
     try {
-      return await dio.get(path, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
+      debugPrint('📡 ApiClient: GET $path');
+      final response = await dio.get(path, queryParameters: queryParameters);
+      debugPrint('✅ ApiClient: GET $path - Sucesso');
+      return response;
+    } catch (e) {
+      debugPrint('❌ ApiClient: GET $path - Erro: $e');
+      rethrow;
     }
   }
 
   Future<Response> post(String path, {dynamic data}) async {
     try {
-      debugPrint('🌐 ApiClient: POST $path');
-      debugPrint('🌐 ApiClient: Dados: $data');
-
-      final token = await getAccessToken();
-      final headers = {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      };
-
-      final response = await dio.post(
-        path,
-        data: data,
-        options: Options(headers: headers),
-      );
-
-      debugPrint('🌐 ApiClient: Resposta - Status: ${response.statusCode}');
+      debugPrint('📡 ApiClient: POST $path');
+      final response = await dio.post(path, data: data);
+      debugPrint('✅ ApiClient: POST $path - Sucesso');
       return response;
-    } on DioException catch (e) {
-      throw _handleError(e);
+    } catch (e) {
+      debugPrint('❌ ApiClient: POST $path - Erro: $e');
+      rethrow;
     }
   }
 
   Future<Response> put(String path, {dynamic data}) async {
     try {
-      return await dio.put(path, data: data);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<Response> patch(String path, {dynamic data}) async {
-    try {
-      debugPrint('🌐 ApiClient: PATCH $path');
-      debugPrint('🌐 ApiClient: Dados: $data');
-
-      final token = await getAccessToken();
-      final headers = {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      };
-
-      final response = await dio.patch(
-        path,
-        data: data,
-        options: Options(headers: headers),
-      );
-
-      debugPrint('🌐 ApiClient: Resposta - Status: ${response.statusCode}');
-      debugPrint('🌐 ApiClient: Resposta - Dados: ${response.data}');
+      debugPrint('📡 ApiClient: PUT $path');
+      final response = await dio.put(path, data: data);
+      debugPrint('✅ ApiClient: PUT $path - Sucesso');
       return response;
-    } on DioException catch (e) {
-      debugPrint('❌ ApiClient: Erro na requisição PATCH');
-      debugPrint('❌ ApiClient: Status: ${e.response?.statusCode}');
-      debugPrint('❌ ApiClient: Dados do erro: ${e.response?.data}');
-      throw _handleError(e);
+    } catch (e) {
+      debugPrint('❌ ApiClient: PUT $path - Erro: $e');
+      rethrow;
     }
   }
 
   Future<Response> delete(String path) async {
     try {
-      return await dio.delete(path);
-    } on DioException catch (e) {
-      throw _handleError(e);
+      debugPrint('📡 ApiClient: DELETE $path');
+      final response = await dio.delete(path);
+      debugPrint('✅ ApiClient: DELETE $path - Sucesso');
+      return response;
+    } catch (e) {
+      debugPrint('❌ ApiClient: DELETE $path - Erro: $e');
+      rethrow;
     }
   }
 
-  Exception _handleError(DioException e) {
-    if (e.response?.data is Map) {
-      final data = e.response?.data as Map;
-      final message = data['detail'] ?? data['message'] ?? e.message;
-      return Exception(message);
+  Future<Response> patch(String path, {dynamic data}) async {
+    try {
+      debugPrint('📡 ApiClient: PATCH $path');
+      final response = await dio.patch(path, data: data);
+      debugPrint('✅ ApiClient: PATCH $path - Sucesso');
+      return response;
+    } catch (e) {
+      debugPrint('❌ ApiClient: PATCH $path - Erro: $e');
+      rethrow;
     }
-    return Exception(e.message ?? 'Erro na requisição');
   }
 }

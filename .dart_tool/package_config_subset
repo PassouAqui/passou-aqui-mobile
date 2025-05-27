@@ -126,6 +126,10 @@ flutter_secure_storage_windows
 2.12
 file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_secure_storage_windows-3.1.2/
 file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_secure_storage_windows-3.1.2/lib/
+form_validator
+2.12
+file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/form_validator-2.1.1/
+file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/form_validator-2.1.1/lib/
 get_it
 3.0
 file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/get_it-7.7.0/
@@ -154,6 +158,10 @@ json_annotation
 3.0
 file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/json_annotation-4.9.0/
 file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/json_annotation-4.9.0/lib/
+jwt_decoder
+2.12
+file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/jwt_decoder-2.0.1/
+file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/jwt_decoder-2.0.1/lib/
 leak_tracker
 3.2
 file:///C:/Users/jp/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-10.0.8/

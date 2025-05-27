@@ -3,10 +3,12 @@ import '../../domain/entities/drug.dart';
 
 class DrugDetailPage extends StatelessWidget {
   final Drug drug;
+  final VoidCallback? onDrugUpdated;
 
   const DrugDetailPage({
     super.key,
     required this.drug,
+    this.onDrugUpdated,
   });
 
   @override
@@ -17,17 +19,6 @@ class DrugDetailPage extends StatelessWidget {
       appBar: AppBar(
         title: Text(drug.nome),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Funcionalidade em desenvolvimento')),
-              );
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

@@ -145,4 +145,19 @@ class DrugRepository {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> getDashboardData() async {
+    try {
+      debugPrint('🔍 DrugRepository: Buscando dados do dashboard...');
+      final response = await _apiClient.get('/inventory/dashboard/');
+      debugPrint('📥 DrugRepository: Resposta do dashboard: ${response.data}');
+      return response.data;
+    } catch (e) {
+      debugPrint('❌ DrugRepository: Erro ao buscar dados do dashboard: $e');
+      if (e is DioException && e.response?.data != null) {
+        debugPrint('📋 DrugRepository: Detalhes do erro: ${e.response?.data}');
+      }
+      rethrow;
+    }
+  }
 }

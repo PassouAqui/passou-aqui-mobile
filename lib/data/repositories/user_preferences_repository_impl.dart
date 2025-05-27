@@ -57,11 +57,14 @@ class UserPreferencesRepositoryImpl implements UserPreferencesRepository {
       final row = await _dbHelper.queryRow();
 
       if (row == null) {
-        throw Exception('No preferences found to update');
+        debugPrint(
+            '⚠️ UserPreferencesRepository: No preferences found, creating new ones');
+        await _dbHelper.insert(preferences.toJson());
+      } else {
+        final updatedRow = preferences.toJson()..['id'] = row['id'];
+        await _dbHelper.update(updatedRow);
       }
 
-      final updatedRow = preferences.toJson()..['id'] = row['id'];
-      await _dbHelper.update(updatedRow);
       debugPrint(
           '✅ UserPreferencesRepository: Preferences updated successfully');
     } catch (e) {

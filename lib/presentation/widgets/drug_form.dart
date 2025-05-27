@@ -82,7 +82,7 @@ class _DrugFormState extends State<DrugForm> {
         await provider.createDrug(drug);
       }
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {

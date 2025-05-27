@@ -33,7 +33,6 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _loadProfile() async {
     if (!context.mounted || _isLoading) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final profileProvider =
         Provider.of<ProfileProvider>(context, listen: false);
@@ -50,21 +49,9 @@ class _ProfilePageState extends State<ProfilePage>
         await profileProvider.loadProfile();
       } else {
         debugPrint('❌ Usuário não autenticado');
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao carregar perfil. Tente novamente.'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
     } catch (e) {
       debugPrint('❌ Erro ao carregar perfil: $e');
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Erro ao carregar perfil: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() {

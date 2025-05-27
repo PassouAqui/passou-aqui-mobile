@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/api/api_client.dart';
 import 'data/api/auth/login.dart';
@@ -24,6 +25,7 @@ import 'presentation/blocs/auth/auth_state.dart';
 import 'presentation/pages/main_page.dart';
 import 'presentation/pages/login_screen.dart';
 import 'presentation/pages/profile_page.dart';
+import 'presentation/pages/register_screen.dart';
 import 'data/repositories/drug_repository.dart';
 import 'data/repositories/dashboard_repository.dart';
 import 'presentation/providers/dashboard_provider.dart';
@@ -34,13 +36,14 @@ import 'domain/usecases/user_preferences_usecase.dart';
 import 'presentation/providers/user_preferences_provider.dart';
 import 'presentation/pages/preferences_page.dart';
 import 'presentation/widgets/app_theme.dart';
+import 'rastreamento.dart';
 
 final getIt = GetIt.instance;
 
 class DependencyInjection {
-  static Widget setup(BuildContext context) {
+  static Future<Widget> setup(BuildContext context) async {
     // Primeiro, garantir que todas as dependências estejam configuradas
-    setupDependencies();
+    await setupDependencies();
 
     return MultiProvider(
       providers: [
@@ -115,8 +118,9 @@ class DependencyInjection {
         // Blocs
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
-            context.read<AuthRepositoryImpl>(),
-            context.read<ApiClient>(),
+            prefs: getIt<SharedPreferences>(),
+            apiClient: context.read<ApiClient>(),
+            loginApi: context.read<LoginApi>(),
           ),
         ),
 
@@ -167,8 +171,10 @@ class DependencyInjection {
               themeMode: ThemeMode.system,
               routes: {
                 '/login': (context) => const LoginScreen(),
+                '/register': (context) => const RegisterScreen(),
                 '/profile': (context) => const ProfilePage(),
                 '/preferences': (context) => const PreferencesPage(),
+                '/rastreamento': (context) => const TelaRastreamento(),
               },
               home: BlocBuilder<AuthBloc, AuthState>(
                 builder: (context, state) {
@@ -199,38 +205,39 @@ class DependencyInjection {
   }
 }
 
-void setupDependencies() {
+Future<void> setupDependencies() async {
+  // Reset GetIt se já houver registros para evitar duplicação
+  if (getIt.isRegistered<DatabaseHelper>()) {
+    await getIt.reset();
+  }
+
+  // Core Services
+  final dbHelper = await DatabaseHelper.instance;
+  final prefs = await SharedPreferences.getInstance();
+  getIt.registerSingleton<DatabaseHelper>(dbHelper);
+  getIt.registerSingleton<SharedPreferences>(prefs);
+
   // Repositories
-  getIt.registerLazySingleton<DrugRepository>(
-    () => DrugRepository(getIt<ApiClient>()),
-  );
-  // ... existing repositories ...
-
-  // Providers
-  getIt.registerFactory<DrugProvider>(
-    () => DrugProvider(getIt<DrugRepository>()),
-  );
-  // ... existing providers ...
-
-  // Database
-  getIt.registerLazySingleton<DatabaseHelper>(() => DatabaseHelper.instance);
-
-  // User Preferences - Garantir que está registrado antes de ser usado
   getIt.registerLazySingleton<UserPreferencesRepository>(
     () => UserPreferencesRepositoryImpl(getIt<DatabaseHelper>()),
   );
 
+  // Use Cases
   getIt.registerLazySingleton<UserPreferencesUseCase>(
     () => UserPreferencesUseCase(getIt<UserPreferencesRepository>()),
   );
 
-  // Mudando de registerFactory para registerLazySingleton para manter a instância
+  // Providers
   getIt.registerLazySingleton<UserPreferencesProvider>(
     () => UserPreferencesProvider(getIt<UserPreferencesUseCase>()),
   );
 }
 
-// Adicionar um método para obter o provider
+// Método para obter o provider de preferências do usuário
 UserPreferencesProvider getUserPreferencesProvider() {
+  if (!getIt.isRegistered<UserPreferencesProvider>()) {
+    throw StateError(
+        'UserPreferencesProvider não está registrado. Certifique-se de que setupDependencies() foi chamado.');
+  }
   return getIt<UserPreferencesProvider>();
 }

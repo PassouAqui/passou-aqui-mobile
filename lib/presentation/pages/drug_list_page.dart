@@ -49,7 +49,10 @@ class _DrugListPageState extends State<DrugListPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => DrugDetailPage(drug: drug),
+        builder: (context) => DrugDetailPage(
+          drug: drug,
+          onDrugUpdated: () => _loadDrugs(refresh: true),
+        ),
       ),
     );
   }
