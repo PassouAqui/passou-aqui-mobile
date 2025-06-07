@@ -9,14 +9,14 @@ class InfoCard extends StatelessWidget {
   final String? subtitle;
 
   const InfoCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.icon,
     this.color,
     this.onTap,
     this.subtitle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

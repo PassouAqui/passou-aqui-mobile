@@ -11,7 +11,7 @@ class DrugFilter extends StatelessWidget {
   final VoidCallback onClearFilters;
 
   const DrugFilter({
-    Key? key,
+    super.key,
     required this.showOnlyActive,
     required this.selectedTarja,
     required this.searchQuery,
@@ -19,7 +19,7 @@ class DrugFilter extends StatelessWidget {
     required this.onTarjaFilterChanged,
     required this.onSearchChanged,
     required this.onClearFilters,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

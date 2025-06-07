@@ -11,7 +11,7 @@ class PaginationControls extends StatelessWidget {
   final Function(int) onPageSelected;
 
   const PaginationControls({
-    Key? key,
+    super.key,
     required this.currentPage,
     required this.totalPages,
     required this.hasNext,
@@ -20,7 +20,7 @@ class PaginationControls extends StatelessWidget {
     this.onNext,
     this.onPrevious,
     required this.onPageSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
