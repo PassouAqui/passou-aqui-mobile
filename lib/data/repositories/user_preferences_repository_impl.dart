@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../../domain/entities/user_preferences.dart';
 import '../../domain/repositories/user_preferences_repository.dart';
 import '../database/database_helper.dart';
@@ -16,13 +16,15 @@ class UserPreferencesRepositoryImpl implements UserPreferencesRepository {
 
       if (row == null) {
         debugPrint(
-            '⚠️ UserPreferencesRepository: No preferences found, returning defaults');
+          '⚠️ UserPreferencesRepository: No preferences found, returning defaults',
+        );
         return const UserPreferences();
       }
 
       final preferences = UserPreferences.fromJson(row);
       debugPrint(
-          '✅ UserPreferencesRepository: Preferences retrieved successfully');
+        '✅ UserPreferencesRepository: Preferences retrieved successfully',
+      );
       return preferences;
     } catch (e) {
       debugPrint('❌ UserPreferencesRepository: Error getting preferences: $e');
@@ -58,7 +60,8 @@ class UserPreferencesRepositoryImpl implements UserPreferencesRepository {
 
       if (row == null) {
         debugPrint(
-            '⚠️ UserPreferencesRepository: No preferences found, creating new ones');
+          '⚠️ UserPreferencesRepository: No preferences found, creating new ones',
+        );
         await _dbHelper.insert(preferences.toJson());
       } else {
         final updatedRow = preferences.toJson()..['id'] = row['id'];
@@ -66,7 +69,8 @@ class UserPreferencesRepositoryImpl implements UserPreferencesRepository {
       }
 
       debugPrint(
-          '✅ UserPreferencesRepository: Preferences updated successfully');
+        '✅ UserPreferencesRepository: Preferences updated successfully',
+      );
     } catch (e) {
       debugPrint('❌ UserPreferencesRepository: Error updating preferences: $e');
       rethrow;
